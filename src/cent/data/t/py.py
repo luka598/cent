@@ -63,14 +63,14 @@ if __name__ == "__main__":
 
     print(Py.load(13))
     print(Py.load({"a": "b"}))
-    CustomType.register_pickle("a", A)
-    x = Py.load(A())
-    print(x)
-    # del CustomType.DUMP["a"]
-    x = Py.dump(x)
-    print(x)
-    print(Py.load(x))
-    CustomType.register_pickle("a", A)
-    print(Py.dump(Py.load(x)))
+    # CustomType.register_pickle("a", A)
+    # x = Py.load(A())
+    # print(x)
+    # # del CustomType.DUMP["a"]
+    # x = Py.dump(x)
+    # print(x)
+    # print(Py.load(x))
+    # CustomType.register_pickle("a", A)
+    # print(Py.dump(Py.load(x)))
 
     # print(Py.dump(Py.load(Box(0, 1.0, "up"))))
