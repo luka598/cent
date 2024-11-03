@@ -1,3 +1,6 @@
 .vscode
 .archive
 __pycache__
+poetry.lock
+dist
+*.old

@@ -1,6 +1,7 @@
 import typing as T
 from enum import IntEnum, auto
-from cent.data.meta.exc import DataException
+
+from cent.data.exc import DataException
 
 """
 Simple:
@@ -16,8 +17,6 @@ Simple:
     Custom
 """
 
-IR_REPRESENTABLE = T.Union[None, bool, int, float, bytes, str, list, dict]
-
 
 class DatumType(IntEnum):
     WORD = auto()
@@ -32,14 +31,11 @@ class DatumType(IntEnum):
     CUSTOM = auto()
 
 
-class ASTNode:
-    def __init__(self, type: DatumType, value: T.Any, args: T.Tuple["ASTNode", ...] = ()) -> None:
+class Datum:
+    def __init__(self, type: DatumType, value: T.Any, args: T.Tuple["Datum", ...] = ()) -> None:
         self.type = type
         self.args = args
         self.value = value
 
-        if self.type != DatumType.CUSTOM and isinstance(self.value, ASTNode):
-            raise DataException("??? retard")
-
     def __repr__(self) -> str:
-        return f"ASTNode(type={self.type.name}, args={self.args}, value={repr(self.value)})"
+        return f"Datum(type={self.type.name}, args={self.args}, value={repr(self.value)})"

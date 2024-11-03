@@ -2,11 +2,10 @@ import asyncio
 import time
 import typing as T
 
-import logigng
+from cent.data import Datum, DatumType
+from cent.logging import Logger
 
-from cent.data.meta import ASTNode, DatumType
-
-log = logigng.Logger(__name__)
+log = Logger(__name__)
 
 ETHER_BROADCAST_ADDR = b"\xff" * 16
 ETHER_BRIDGE_ADDR = b"\x00" * 16
@@ -18,13 +17,13 @@ class EtherException(Exception):
 
 class Ether:
     def __init__(self) -> None:
-        self.channels: T.Dict[bytes, T.List[T.Callable[[ASTNode], T.Any]]] = {}
+        self.channels: T.Dict[bytes, T.List[T.Callable[[Datum], T.Any]]] = {}
         self.callback_iota = 0
 
         self.channels[ETHER_BRIDGE_ADDR] = []
         self.channels[ETHER_BROADCAST_ADDR] = []
 
-    async def msg_channel(self, channel: bytes, msg: ASTNode) -> None:
+    async def msg_channel(self, channel: bytes, msg: Datum) -> None:
         tasks = []
         for callback in self.channels[channel]:
             tasks.append(callback(msg))
@@ -42,7 +41,7 @@ class Ether:
     async def msg(
         self,
         channel: bytes,
-        msg: ASTNode,
+        msg: Datum,
     ) -> None:
         if len(channel) != 16:
             return
@@ -64,7 +63,7 @@ class Ether:
     def add_callback(
         self,
         channel: bytes,
-        callback: T.Callable[[ASTNode], T.Any],
+        callback: T.Callable[[Datum], T.Any],
     ) -> None:
         if len(channel) != 16:
             return

@@ -2,16 +2,16 @@ import asyncio
 import time
 import typing as T
 
-import logigng
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
 from websockets.sync.client import connect
 
-from cent.data import JSONx, Py
-from cent.data.meta import DataException
+from cent.data import DataException
+from cent.data.t import JSONx, Py
 from cent.ether import Ether, EtherException
+from cent.logging import Logger
 
-log = logigng.Logger(__name__)
+log = Logger(__name__)
 
 
 async def main(e: Ether) -> None:

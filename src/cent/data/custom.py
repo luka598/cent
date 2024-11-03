@@ -1,11 +1,11 @@
 import pickle
 import typing as T
 
-from cent.data.meta.exc import DataException
-from cent.data.meta.ir import ASTNode, DatumType
+from cent.data.datum import Datum, DatumType
+from cent.data.exc import DataException
 
-LOAD_FUNC_t = T.Callable[[T.Any], ASTNode]
-DUMP_FUNC_t = T.Callable[[ASTNode], T.Any]
+LOAD_FUNC_t = T.Callable[[T.Any], Datum]
+DUMP_FUNC_t = T.Callable[[Datum], T.Any]
 
 
 class CustomType:
@@ -40,7 +40,7 @@ class CustomType:
         CustomType.register(
             name,
             t,
-            lambda x: ASTNode(DatumType.BYTES, pickle.dumps(x)),
+            lambda x: Datum(DatumType.BYTES, pickle.dumps(x)),
             lambda x: pickle.loads(x.value),
         )
 

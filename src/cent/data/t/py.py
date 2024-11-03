@@ -1,42 +1,36 @@
 import typing as T
 
-from cent.data.meta import (
-    ASTNode,
-    CustomType,
-    DataException,
-    DatumType,
-    Transform,
-)
+from cent.data import CustomType, DataException, Datum, DatumType, Transform
 
 
 class Py(Transform):
     @staticmethod
-    def load(x: T.Any) -> ASTNode:  # noqa: C901
+    def load(x: T.Any) -> Datum:  # noqa: C901
         # Simple
         if x is None:
-            return ASTNode(DatumType.NULL, None)
+            return Datum(DatumType.NULL, None)
         if isinstance(x, bool):
-            return ASTNode(DatumType.BOOL, x)
+            return Datum(DatumType.BOOL, x)
         if isinstance(x, int):
-            return ASTNode(DatumType.INT, x)
+            return Datum(DatumType.INT, x)
         if isinstance(x, float):
-            return ASTNode(DatumType.FLOAT, x)
+            return Datum(DatumType.FLOAT, x)
         if isinstance(x, bytes):
-            return ASTNode(DatumType.BYTES, x)
+            return Datum(DatumType.BYTES, x)
         if isinstance(x, str):
-            return ASTNode(DatumType.STRING, x)
+            return Datum(DatumType.STRING, x)
         if isinstance(x, list):
-            return ASTNode(DatumType.ARRAY, [Py.load(item) for item in x])
+            return Datum(DatumType.ARRAY, [Py.load(item) for item in x])
         if isinstance(x, dict):
-            return ASTNode(DatumType.MAP, {Py.load(k): Py.load(v) for k, v in x.items()})
+            return Datum(DatumType.MAP, {Py.load(k): Py.load(v) for k, v in x.items()})
         if isinstance(x, object):
             name, load = CustomType.get_load(type(x))
-            return ASTNode(DatumType.CUSTOM, load(x), (ASTNode(DatumType.STRING, name),))
+            return Datum(DatumType.CUSTOM, load(x), (Datum(DatumType.STRING, name),))
         raise DataException
 
     @staticmethod
-    def dump(x: T.Union[ASTNode, T.Any]) -> T.Any:  # noqa: C901
-        if not isinstance(x, ASTNode):
+    def dump(x: T.Union[Datum, T.Any]) -> T.Any:  # noqa: C901
+        if not isinstance(x, Datum):
             return x
 
         if x.type == DatumType.NULL:
