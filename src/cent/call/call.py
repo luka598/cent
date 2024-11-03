@@ -5,15 +5,15 @@ from cent.ether.ws_jsonx import Client
 
 
 class CallServer:
-    def __init__(self, service: str) -> None:
+    def __init__(self, service: str, server_uri: str, channel: bytes) -> None:
         self.service = service
         self.funcs = {}
-        self.client = Client()
+        self.client = Client(server_uri, channel)
 
-    def register(self, name: str, f: T.Callable):
+    def register(self, name: str, f: T.Callable) -> None:
         self.funcs[name] = f
 
-    def start(self):
+    def start(self) -> None:  # noqa: C901
         while True:
             msg = self.client.recv()
 
@@ -77,8 +77,8 @@ class CallClient:
     class Exception(Exception):
         pass
 
-    def __init__(self) -> None:
-        self.client = Client()
+    def __init__(self, server_uri: str, channel: bytes) -> None:
+        self.client = Client(server_uri, channel)
 
     def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
         call_id = uuid4().bytes

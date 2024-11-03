@@ -1,63 +1,66 @@
 import asyncio
+import time
 import typing as T
-from uuid import uuid4
 
 import logigng
-from tuil.env import get_var
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
 from websockets.sync.client import connect
 
-from cent.data.jsonx import JSONX
+from cent.data import JSONx, Py
+from cent.data.meta import DataException
 from cent.ether import Ether, EtherException
 
 log = logigng.Logger(__name__)
 
 
-async def main(e: Ether):
-    async def handle(ws):
+async def main(e: Ether) -> None:
+    async def handle(ws) -> None:
         try:
             channel_data = await ws.recv()
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+            log.warning(f"DC: {int(time.time())}")
             return
         if isinstance(channel_data, bytes):
+            log.warning(f"ERR: {int(time.time())} - Msg not string")
             return
         try:
             channel = bytes.fromhex(channel_data)
         except ValueError:
+            log.warning(f"ERR: {int(time.time())} - Failed to decode channel")
             return
         if len(channel) != 16:
+            log.warning(f"ERR: {int(time.time())} - Invalid channel length")
             return
 
-        e.add_callback(channel, lambda msg: ws.send(JSONX.dump(msg)))
+        e.add_callback(channel, lambda msg: ws.send(JSONx.dump(msg)))
 
         while True:
             try:
                 msg_data = await ws.recv()
             except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-                return
+                log.warning(f"DC: {channel.hex()} - {int(time.time())}")
+                break
 
             try:
-                msg = JSONX.load(msg_data)
+                msg = JSONx.load(msg_data)
                 await e.msg(channel, msg)
-            except JSONX.Exception:
-                pass
+            except DataException as exc:
+                log.warning(f"INV_PKT: {channel.hex()} - {int(time.time())} - {str(exc)}")
 
     server_jsonx = await serve(handle, "0.0.0.0", 14320, ping_interval=60, ping_timeout=60)
     log.info("Started jsonx server on 0.0.0.0:14320")
     await server_jsonx.serve_forever()
 
 
-DEFAULT_CHANNEL = bytes.fromhex(get_var("ETHER_CHANNEL", uuid4().bytes.hex()))
-DEFAULT_SERVER_URI = get_var("ETHER_SERVER_URI", "ws://localhost:14320")
-
-
 class Client:
     def __init__(
-        self, server_uri: T.Optional[str] = None, channel: T.Optional[bytes] = None
+        self,
+        server_uri: str,
+        channel: bytes,
     ) -> None:
-        self.channel = channel or DEFAULT_CHANNEL
-        self.server_uri = server_uri or DEFAULT_SERVER_URI
+        self.channel = channel
+        self.server_uri = server_uri
 
         self.connect()
 
@@ -67,7 +70,7 @@ class Client:
 
     def send(self, msg: T.Dict) -> None:
         try:
-            self.ws.send(JSONX.dump(msg))
+            self.ws.send(JSONx.dump(Py.load(msg)))
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
             log.warning("Connection closed, trying to reconnect.")
             try:
@@ -87,9 +90,9 @@ class Client:
                     raise EtherException("Connection closed")
 
             try:
-                return JSONX.load(msg_data)
-            except JSONX.Exception:
-                pass
+                return Py.dump(JSONx.load(msg_data))
+            except DataException as e:
+                log.warning(f"Failed to decode msg: {str(e)}")
 
 
 if __name__ == "__main__":
