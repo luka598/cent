@@ -14,6 +14,7 @@ from cent.data import DataException
 from cent.data.t import JSONx, Py
 from cent.ether import Ether, EtherException
 from cent.logging import Logger
+import os
 
 log = Logger(__name__)
 
@@ -52,8 +53,10 @@ async def main(e: Ether) -> None:
             except DataException as exc:
                 log.warning(f"INV_PKT: {channel.hex()} - {int(time.time())} - {str(exc)}")
 
-    server_jsonx = await serve(handle, "0.0.0.0", 14320, ping_interval=60, ping_timeout=60)
-    log.info("Started jsonx server on 0.0.0.0:14320")
+    addr = "0.0.0.0"
+    port = os.getenv("ETHER_PORT") or 14320
+    server_jsonx = await serve(handle, addr, port, ping_interval=60, ping_timeout=60)
+    log.info(f"Started jsonx server on {addr}:{port}")
     await server_jsonx.serve_forever()
 
 
