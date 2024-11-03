@@ -32,9 +32,7 @@ class Ether:
         removed = 0
         for idx, future in enumerate(futures):
             if isinstance(future, Exception):
-                log.warning(
-                    f"Failed to exec callback {idx} on channel={channel.hex()}: {future.__class__.__name__} - {future}"
-                )
+                log.warning(f"Failed to exec callback {idx} on channel={channel.hex()}: {future.__class__.__name__} - {future}")
                 self.channels[channel].pop(idx - removed)
                 removed += 1
 

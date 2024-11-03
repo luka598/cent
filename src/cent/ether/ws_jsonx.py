@@ -3,7 +3,11 @@ import time
 import typing as T
 
 from websockets.asyncio.server import serve
-from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
+from websockets.exceptions import (
+    ConnectionClosed,
+    ConnectionClosedError,
+    ConnectionClosedOK,
+)
 from websockets.sync.client import connect
 
 from cent.data import DataException

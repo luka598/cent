@@ -1,1 +1,1 @@
-from logging import Logger
+from cent.logging.logging import Logger

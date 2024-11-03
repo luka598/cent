@@ -30,14 +30,10 @@ class DatumType(IntEnum):
 
 
 class Datum:
-    def __init__(
-        self, type: DatumType, value: T.Any, args: T.Tuple["Datum", ...] = ()
-    ) -> None:
+    def __init__(self, type: DatumType, value: T.Any, args: T.Tuple["Datum", ...] = ()) -> None:
         self.type = type
         self.args = args
         self.value = value
 
     def __repr__(self) -> str:
-        return (
-            f"Datum(type={self.type.name}, args={self.args}, value={repr(self.value)})"
-        )
+        return f"Datum(type={self.type.name}, args={self.args}, value={repr(self.value)})"

@@ -124,8 +124,7 @@ class ThreadedPrinter(Printer):
     @property
     def _stop_condtion(self):
         return (
-            self.stop_event.is_set()
-            or not (self.main_thread_ref() and self.main_thread_ref().is_alive())  # type: ignore
+            self.stop_event.is_set() or not (self.main_thread_ref() and self.main_thread_ref().is_alive())  # type: ignore
         ) and len(self.deque) == 0
 
     def worker(self):
