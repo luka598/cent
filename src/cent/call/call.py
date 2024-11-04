@@ -58,7 +58,7 @@ class CallServer:
                     {
                         "call_id": call_id,
                         "success": True,
-                        "ret": ret,
+                        "ret": list(ret),
                     }
                 )
             except Exception as e:
