@@ -36,11 +36,7 @@ class Ether:
                 self.channels[channel].pop(idx - removed)
                 removed += 1
 
-    async def msg(
-        self,
-        channel: bytes,
-        msg: Datum,
-    ) -> None:
+    async def msg(self, channel: bytes, msg: Datum) -> None:
         if len(channel) != 16:
             return
         if channel not in self.channels:
@@ -58,11 +54,7 @@ class Ether:
         else:
             await self.msg_channel(channel, msg)
 
-    def add_callback(
-        self,
-        channel: bytes,
-        callback: T.Callable[[Datum], T.Any],
-    ) -> None:
+    def add_callback(self, channel: bytes, callback: T.Callable[[Datum], T.Any]) -> None:
         if len(channel) != 16:
             return
         if channel not in self.channels:

@@ -1,20 +1,16 @@
 import asyncio
+import os
 import time
 import typing as T
 
 from websockets.asyncio.server import serve
-from websockets.exceptions import (
-    ConnectionClosed,
-    ConnectionClosedError,
-    ConnectionClosedOK,
-)
+from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
 from websockets.sync.client import connect
 
 from cent.data import DataException
 from cent.data.t import JSONx, PyO
 from cent.ether import Ether, EtherException
 from cent.logging import Logger
-import os
 
 log = Logger(__name__)
 
@@ -54,18 +50,14 @@ async def main(e: Ether) -> None:
                 log.warning(f"INV_PKT: {channel.hex()} - {int(time.time())} - {str(exc)}")
 
     addr = "0.0.0.0"
-    port = os.getenv("ETHER_PORT") or 14320
+    port = int(os.getenv("ETHER_PORT") or 14320)
     server_jsonx = await serve(handle, addr, port, ping_interval=60, ping_timeout=60)
     log.info(f"Started jsonx server on {addr}:{port}")
     await server_jsonx.serve_forever()
 
 
 class Client:
-    def __init__(
-        self,
-        server_uri: str,
-        channel: bytes,
-    ) -> None:
+    def __init__(self, server_uri: str, channel: bytes) -> None:
         self.channel = channel
         self.server_uri = server_uri
 

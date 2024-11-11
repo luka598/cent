@@ -15,10 +15,7 @@ class CustomType:
 
     @staticmethod
     def register(
-        name: str,
-        t: T.Optional[T.Type] = None,
-        load: T.Optional[LOAD_FUNC_t] = None,
-        dump: T.Optional[DUMP_FUNC_t] = None,
+        name: str, t: T.Optional[T.Type] = None, load: T.Optional[LOAD_FUNC_t] = None, dump: T.Optional[DUMP_FUNC_t] = None
     ) -> None:
         if t is not None:
             CustomType.NAMES[t] = name
@@ -33,10 +30,7 @@ class CustomType:
             CustomType.DUMP[name] = dump
 
     @staticmethod
-    def register_pickle(
-        name: str,
-        t: T.Optional[T.Type] = None,
-    ) -> None:
+    def register_pickle(name: str, t: T.Optional[T.Type] = None) -> None:
         CustomType.register(
             name,
             t,
