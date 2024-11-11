@@ -196,14 +196,13 @@ class Logger:
 
 
 class CustomHandler(py_logging.Handler):
-    def __init__(self, level=py_logging.NOTSET):
+    def __init__(self, level: int = py_logging.NOTSET):
         super().__init__(level)
         self.printer = PRINTER_MANAGER.capture_printer()
 
     def emit(self, record: py_logging.LogRecord) -> None:
         log_entry = self.format(record)
 
-        print(f"Added log '{log_entry[:16]}' {record.name=} {record.levelno=}")
         self.printer.add_log(log_entry, name=record.name, log_level=record.levelno)
 
 
