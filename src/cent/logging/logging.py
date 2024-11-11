@@ -1,4 +1,5 @@
 import atexit
+import logging as py_logging
 import os
 import threading
 import time
@@ -52,16 +53,16 @@ LOG_THREADED = bool(os.getenv("LOG_THREADED") or True)
 
 
 class Printer:
-    def start(self):
+    def start(self) -> None:
         raise NotImplementedError()
 
-    def stop(self):
+    def stop(self) -> None:
         raise NotImplementedError()
 
-    def add_log(self, *args, **kwargs):
+    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
         raise NotImplementedError()
 
-    def log(self, *args, name: str = "", log_level: LOG_LEVEL_t, **kwargs):
+    def _log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
         log_level = interpret_log_level(log_level)
 
         # Filters
@@ -92,14 +93,14 @@ class Printer:
 
 
 class ClassicPrinter(Printer):
-    def start(self):
+    def start(self) -> None:
         pass
 
-    def stop(self):
+    def stop(self) -> None:
         pass
 
-    def add_log(self, *args, **kwargs):
-        self.log(*args, **kwargs)
+    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
+        self._log(*args, name=name, log_level=log_level)
 
 
 class ThreadedPrinter(Printer):
@@ -110,28 +111,28 @@ class ThreadedPrinter(Printer):
         self.main_thread_ref = weakref.ref(threading.main_thread())
         self.thread = threading.Thread(name="Printer", target=self.worker, daemon=False)
 
-    def start(self):
+    def start(self) -> None:
         self.thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.stop_event.set()
 
-    def add_log(self, *args, **kwargs):
+    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
         if self.stop_event.is_set():
             raise RuntimeError("Printer stopped")
-        self.deque.append((args, kwargs))
+        self.deque.append((args, name, log_level))
 
     @property
-    def _stop_condtion(self):
+    def _stop_condtion(self) -> bool:
         return (
             self.stop_event.is_set() or not (self.main_thread_ref() and self.main_thread_ref().is_alive())  # type: ignore
         ) and len(self.deque) == 0
 
-    def worker(self):
+    def worker(self) -> None:
         while not self._stop_condtion:
             try:
-                args, kwargs = self.deque.popleft()
-                self.log(*args, **kwargs)
+                args, name, log_level = self.deque.popleft()
+                self._log(*args, name=name, log_level=log_level)
             except IndexError:
                 time.sleep(self.wait_time)
 
@@ -151,7 +152,7 @@ class PrinterManager:
         self.ref_count += 1
         return self.printer  # type: ignore
 
-    def release_printer(self):
+    def release_printer(self) -> None:
         self.ref_count -= 1
         if self.ref_count == 0:
             self.printer.stop()  # type: ignore
@@ -169,23 +170,42 @@ class Logger:
         self.printer = PRINTER_MANAGER.capture_printer()
         atexit.register(lambda: PRINTER_MANAGER.release_printer())
 
-    def log(self, *args, log_level: LOG_LEVEL_t = "NOTSET"):
+    def log(self, *args: T.Any, log_level: LOG_LEVEL_t = "NOTSET") -> None:
         if interpret_log_level(log_level) < LOG_LEVEL:  # NOTE: Pre-filter
             return
 
         self.printer.add_log(*args, name=self.name, log_level=log_level)
 
-    def debug(self, *args):
+    def debug(self, *args: T.Any) -> None:
         return self.log(*args, log_level="DEBUG")
 
-    def info(self, *args):
+    def info(self, *args: T.Any) -> None:
         return self.log(*args, log_level="INFO")
 
-    def warning(self, *args):
+    def warning(self, *args: T.Any) -> None:
         return self.log(*args, log_level="WARNING")
 
-    def error(self, *args):
+    def error(self, *args: T.Any) -> None:
         return self.log(*args, log_level="ERROR")
 
-    def critical(self, *args):
+    def critical(self, *args: T.Any) -> None:
         return self.log(*args, log_level="CRITICAL")
+
+
+# ---
+
+
+class CustomHandler(py_logging.Handler):
+    def __init__(self, level=py_logging.NOTSET):
+        super().__init__(level)
+        self.printer = PRINTER_MANAGER.capture_printer()
+
+    def emit(self, record: py_logging.LogRecord) -> None:
+        log_entry = self.format(record)
+
+        print(f"Added log '{log_entry[:16]}' {record.name=} {record.levelno=}")
+        self.printer.add_log(log_entry, name=record.name, log_level=record.levelno)
+
+
+root_py_logger = py_logging.getLogger()
+root_py_logger.addHandler(CustomHandler())
