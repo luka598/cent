@@ -2,7 +2,7 @@ import json
 import typing as T
 
 from cent.data import CustomType, DataException, Datum, DatumType, Transform
-from cent.data.t.py import Py
+from cent.data.t.pyo import PyO
 
 
 class JSONx(Transform):
@@ -46,7 +46,7 @@ class JSONx(Transform):
         x = JSONx.ast_dump(x)
 
         if x.type == DatumType.MAP or x.type == DatumType.ARRAY:
-            obj = Py.dump(x)
+            obj = PyO.dump(x)
         else:
             raise DataException
 
@@ -82,7 +82,7 @@ class JSONx(Transform):
             raise DataException
 
         if isinstance(x_obj, (dict, list)):
-            ast = Py.load(x_obj)
+            ast = PyO.load(x_obj)
         else:
             raise DataException
 
@@ -100,12 +100,12 @@ if __name__ == "__main__":
     # x = Py.load({"Osm": b"\x00"})
     CustomType.register_pickle("a", A)
 
-    x = Py.load({"x": A()})
+    x = PyO.load({"x": A()})
     print("OG AST", x, "\n")
     dump = JSONx.dump(x)
-    print("ast-py", Py.dump(dump))
+    print("ast-py", PyO.dump(dump))
     # print(repr(dump))
     print("---")
     load = JSONx.load(dump)
     print(load, "\n")
-    print(Py.dump(load))
+    print(PyO.dump(load))

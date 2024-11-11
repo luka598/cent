@@ -11,7 +11,7 @@ from websockets.exceptions import (
 from websockets.sync.client import connect
 
 from cent.data import DataException
-from cent.data.t import JSONx, Py
+from cent.data.t import JSONx, PyO
 from cent.ether import Ether, EtherException
 from cent.logging import Logger
 import os
@@ -77,7 +77,7 @@ class Client:
 
     def send(self, msg: T.Dict) -> None:
         try:
-            self.ws.send(JSONx.dump(Py.load(msg)))
+            self.ws.send(JSONx.dump(PyO.load(msg)))
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
             log.warning("Connection closed, trying to reconnect.")
             try:
@@ -97,7 +97,7 @@ class Client:
                     raise EtherException("Connection closed")
 
             try:
-                return Py.dump(JSONx.load(msg_data))
+                return PyO.dump(JSONx.load(msg_data))
             except DataException as e:
                 log.warning(f"Failed to decode msg: {str(e)}")
 

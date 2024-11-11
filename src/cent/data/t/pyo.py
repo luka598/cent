@@ -3,7 +3,7 @@ import typing as T
 from cent.data import CustomType, DataException, Datum, DatumType, Transform
 
 
-class Py(Transform):
+class PyO(Transform):
     @staticmethod
     def load(x: T.Any) -> Datum:  # noqa: C901
         # Simple
@@ -20,9 +20,9 @@ class Py(Transform):
         if isinstance(x, str):
             return Datum(DatumType.STRING, x)
         if isinstance(x, list):
-            return Datum(DatumType.ARRAY, [Py.load(item) for item in x])
+            return Datum(DatumType.ARRAY, [PyO.load(item) for item in x])
         if isinstance(x, dict):
-            return Datum(DatumType.MAP, {Py.load(k): Py.load(v) for k, v in x.items()})
+            return Datum(DatumType.MAP, {PyO.load(k): PyO.load(v) for k, v in x.items()})
         if isinstance(x, object):
             name, load = CustomType.get_load(type(x))
             return Datum(DatumType.CUSTOM, load(x), (Datum(DatumType.STRING, name),))
@@ -46,9 +46,9 @@ class Py(Transform):
         if x.type == DatumType.STRING:
             return x.value
         if x.type == DatumType.ARRAY:
-            return [Py.dump(v) for v in x.value]
+            return [PyO.dump(v) for v in x.value]
         if x.type == DatumType.MAP:
-            return {Py.dump(k): Py.dump(v) for k, v in x.value.items()}
+            return {PyO.dump(k): PyO.dump(v) for k, v in x.value.items()}
         if x.type == DatumType.CUSTOM:
             name = x.args[0].value
             _, dump = CustomType.get_dump(name)
@@ -61,8 +61,8 @@ if __name__ == "__main__":
     class A:
         pass
 
-    print(Py.load(13))
-    print(Py.load({"a": "b"}))
+    print(PyO.load(13))
+    print(PyO.load({"a": "b"}))
     # CustomType.register_pickle("a", A)
     # x = Py.load(A())
     # print(x)
