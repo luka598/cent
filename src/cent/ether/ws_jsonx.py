@@ -53,7 +53,7 @@ async def main(e: Ether) -> None:
     ssl_cert = os.getenv("ETHER_SSL_CERT")
     ssl_key = os.getenv("ETHER_SSL_KEY")
     if ssl_cert and ssl_key:
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ssl_context.load_cert_chain(
             certfile=ssl_cert,
             keyfile=ssl_key,
