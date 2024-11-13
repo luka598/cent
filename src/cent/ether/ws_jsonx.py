@@ -1,5 +1,6 @@
 import asyncio
 import os
+import ssl
 import time
 import typing as T
 
@@ -49,11 +50,24 @@ async def main(e: Ether) -> None:
             except DataException as exc:
                 log.warning(f"INV_PKT: {channel.hex()} - {int(time.time())} - {str(exc)}")
 
+    ssl_cert = os.getenv("ETHER_SSL_CERT")
+    ssl_key = os.getenv("ETHER_SSL_KEY")
+    if ssl_cert and ssl_key:
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.load_cert_chain(
+            certfile=ssl_cert,
+            keyfile=ssl_key,
+        )
+    else:
+        ssl_context = None
+
     addr = "0.0.0.0"
     port = int(os.getenv("ETHER_PORT") or 14320)
-    server_jsonx = await serve(handle, addr, port, ping_interval=60, ping_timeout=60)
-    log.info(f"Started jsonx server on {addr}:{port}")
-    await server_jsonx.serve_forever()
+
+    server = await serve(handle, addr, port, ssl=ssl_context, ping_interval=60, ping_timeout=60)
+
+    log.info(f"Started jsonx server on {'ws' if ssl_context is None else 'wss'}://{addr}:{port}")
+    await server.serve_forever()
 
 
 class Client:
