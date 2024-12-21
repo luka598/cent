@@ -1,6 +1,7 @@
 import typing as T
 from uuid import uuid4
 
+from cent.ether import EtherException
 from cent.ether.ws_jsonx import Client
 from cent.logging import Logger
 
@@ -113,7 +114,10 @@ class CallClient:
         log.debug(f"Sent request for {func}")
 
         while True:
-            msg = self.client.recv()
+            try:
+                msg = self.client.recv()
+            except EtherException as e:
+                log.error(f"Failed to receive message: {type(e)} - {e}")
             # ---
             try:
                 ret_call_id = msg["call_id"]

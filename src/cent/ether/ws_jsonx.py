@@ -75,6 +75,7 @@ class Client:
         self.channel = channel
         self.server_uri = server_uri
 
+        self.ws: T.Any = None
         self.connect()
 
     def connect(self) -> None:
@@ -84,31 +85,30 @@ class Client:
         log.debug(f"Connected to {self.channel.hex()}@{self.server_uri}")
 
     def send(self, msg: T.Dict) -> None:
+        if not self.ws:
+            self.connect()
+
         try:
             self.ws.send(JSONx.dump(PyO.load(msg)))
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-            log.warning("Connection closed, trying to reconnect.")
-            try:
-                self.connect()
-            except Exception:
-                raise EtherException("Connection closed")
+            log.warning("Connection closed.")
+            self.ws = None
 
     def recv(self) -> T.Dict:
-        while True:
-            try:
-                msg_data = self.ws.recv()
-            except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-                log.warning("Connection closed, trying to reconnect.")
-                try:
-                    self.connect()
-                    continue
-                except Exception:
-                    raise EtherException("Connection closed")
+        if not self.ws:
+            self.connect()
 
-            try:
-                return PyO.dump(JSONx.load(msg_data))
-            except DataException as e:
-                log.warning(f"Failed to decode msg: {str(e)}")
+        try:
+            msg_data = self.ws.recv()
+        except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+            log.warning("Connection closed.")
+            self.ws = None
+            raise EtherException("Connection closed.")
+
+        try:
+            return PyO.dump(JSONx.load(msg_data))
+        except DataException as e:
+            log.warning(f"Failed to decode msg: {str(e)}")
 
 
 if __name__ == "__main__":
