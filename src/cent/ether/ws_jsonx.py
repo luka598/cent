@@ -78,8 +78,10 @@ class Client:
         self.connect()
 
     def connect(self) -> None:
+        log.debug(f"Connecting to {self.channel.hex()}@{self.server_uri}")
         self.ws = connect(self.server_uri)
         self.ws.send(self.channel.hex())
+        log.debug(f"Connected to {self.channel.hex()}@{self.server_uri}")
 
     def send(self, msg: T.Dict) -> None:
         try:
@@ -96,6 +98,7 @@ class Client:
             try:
                 msg_data = self.ws.recv()
             except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+                log.warning("Connection closed, trying to reconnect.")
                 try:
                     self.connect()
                     continue
