@@ -1,3 +1,4 @@
+import time
 import typing as T
 from uuid import uuid4
 
@@ -6,6 +7,31 @@ from cent.ether.ws_jsonx import Client
 from cent.logging import Logger
 
 log = Logger(__name__)
+
+
+class BoundSet:
+    def __init__(self, ttl: int, max_size: int) -> None:
+        self.ttl = ttl
+        self.max_size = max_size
+        self.cache = {}
+        self.n = 0
+
+    def check(self, key: bytes) -> bool:
+        if key not in self.cache:
+            self.cache[key] = time.monotonic()
+            self.n += 1
+            if self.n > self.max_size:
+                self.clean()
+            return False
+        else:
+            self.cache[key] = time.monotonic()
+            return True
+
+    def clean(self) -> None:
+        for key, value in self.cache.items():
+            if time.monotonic() - value > self.ttl:
+                del self.cache[key]
+                self.n -= 1
 
 
 class CallServer:
@@ -19,6 +45,7 @@ class CallServer:
         log.debug(f"Registered {name} for {self.service}")
 
     def start(self) -> None:  # noqa: C901
+        call_ids = BoundSet(ttl=60 * 5, max_size=10_00)
         log.debug(f"Started call server for {self.service}")
         while True:
             msg = self.client.recv()
@@ -39,6 +66,9 @@ class CallServer:
                 continue
             if len(call_id) != 16:
                 log.debug("Got invalid call_id; invalid length")
+                continue
+            if call_ids.check(call_id):
+                log.debug("Got invalid call_id; duplicate")
                 continue
 
             if not isinstance(service, str):
@@ -113,12 +143,11 @@ class CallClient:
         )
         log.debug(f"Sent request for {func}")
 
-        while True:
+        for _ in range(5):
             try:
                 msg = self.client.recv()
             except EtherException as e:
                 log.error(f"Failed to receive message: {type(e)} - {e}")
-                raise e
             # ---
             try:
                 ret_call_id = msg["call_id"]
@@ -149,6 +178,10 @@ class CallClient:
                 return ret
             else:
                 raise CallClient.Exception(f"{ret[0]} - {ret[1]}")
+
+        log.warning(f"Failed to get response for {func}, resending.")
+
+        return self.call(service, func, args)
 
     def call_noret(self, service: str, func: str, args: T.Dict) -> None:
         call_id = uuid4().bytes

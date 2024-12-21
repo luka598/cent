@@ -93,22 +93,24 @@ class Client:
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
             log.warning("Connection closed.")
             self.ws = None
+            raise EtherException("Connection closed.")
 
     def recv(self) -> T.Dict:
         if not self.ws:
             self.connect()
 
-        try:
-            msg_data = self.ws.recv()
-        except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-            log.warning("Connection closed.")
-            self.ws = None
-            raise EtherException("Connection closed.")
+        while True:
+            try:
+                msg_data = self.ws.recv()
+            except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+                log.warning("Connection closed.")
+                self.ws = None
+                raise EtherException("Connection closed.")
 
-        try:
-            return PyO.dump(JSONx.load(msg_data))
-        except DataException as e:
-            log.warning(f"Failed to decode msg: {str(e)}")
+            try:
+                return PyO.dump(JSONx.load(msg_data))
+            except DataException as e:
+                log.warning(f"Failed to decode msg: {str(e)}")
 
 
 if __name__ == "__main__":
