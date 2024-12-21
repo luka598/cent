@@ -118,6 +118,7 @@ class CallClient:
                 msg = self.client.recv()
             except EtherException as e:
                 log.error(f"Failed to receive message: {type(e)} - {e}")
+                raise e
             # ---
             try:
                 ret_call_id = msg["call_id"]
