@@ -52,6 +52,16 @@ LOG_FOCUS = os.getenv("LOG_FOCUS")
 LOG_THREADED = bool(os.getenv("LOG_THREADED") or True)
 
 
+class ANSICode:
+    RESET = "\033[0m"
+    MAGENTA = "\033[95m"
+    BLUE = "\033[94m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BG_RED = "\033[41m"
+
+
 class Printer:
     def start(self) -> None:
         raise NotImplementedError()
@@ -84,9 +94,24 @@ class Printer:
                 elif focus != name:
                     return
 
-        output = "[%s][%s]: %s" % (
+        if log_level < 10:
+            color = ANSICode.MAGENTA
+        elif log_level < 20:
+            color = ANSICode.BLUE
+        elif log_level < 30:
+            color = ANSICode.GREEN
+        elif log_level < 40:
+            color = ANSICode.YELLOW
+        elif log_level < 50:
+            color = ANSICode.RED
+        else:
+            color = ANSICode.BG_RED
+
+        output = "%s[%s][%s]:%s %s" % (
+            color,
             name,
             log_level,
+            ANSICode.RESET,
             " ".join([str(item) for item in args]),
         )
         print(output, flush=True)
