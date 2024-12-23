@@ -2,7 +2,6 @@ import time
 import typing as T
 from uuid import uuid4
 
-from cent.ether import EtherException
 from cent.ether.ws_jsonx import Client
 from cent.logging import Logger
 
@@ -145,9 +144,9 @@ class CallClient:
 
         for _ in range(5):
             try:
-                msg = self.client.recv()
-            except EtherException as e:
-                log.error(f"Failed to receive message: {type(e)} - {e}")
+                msg = self.client.recv(timeout=10)
+            except TimeoutError:
+                log.error("Failed to receive message; timed out")
             # ---
             try:
                 ret_call_id = msg["call_id"]

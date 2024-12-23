@@ -84,22 +84,41 @@ class Client:
         self.ws.send(self.channel.hex())
         log.debug(f"Connected to {self.channel.hex()}@{self.server_uri}")
 
-    def send(self, msg: T.Dict) -> None:
-        if not self.ws:
-            self.connect()
+    def send(self, msg: T.Dict, timeout: T.Optional[float] = None) -> None:
+        time_start = time.monotonic()
 
-        try:
-            self.ws.send(JSONx.dump(PyO.load(msg)))
-        except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-            log.warning("Connection closed.")
-            self.ws = None
-            raise EtherException("Connection closed.")
+        def timed_out() -> bool:
+            if timeout is not None:
+                return (time.monotonic() - time_start) > timeout
+            else:
+                return False
 
-    def recv(self) -> T.Dict:
-        if not self.ws:
-            self.connect()
+        while not timed_out():
+            if not self.ws:
+                self.connect()
 
-        while True:
+            try:
+                self.ws.send(JSONx.dump(PyO.load(msg)))
+                return
+            except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+                log.warning("Connection closed.")
+                self.ws = None
+
+        raise TimeoutError()
+
+    def recv(self, timeout: T.Optional[float] = None) -> T.Dict:
+        time_start = time.monotonic()
+
+        def timed_out() -> bool:
+            if timeout is not None:
+                return (time.monotonic() - time_start) > timeout
+            else:
+                return False
+
+        while not timed_out():
+            if not self.ws:
+                self.connect()
+
             try:
                 msg_data = self.ws.recv()
             except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
@@ -111,6 +130,8 @@ class Client:
                 return PyO.dump(JSONx.load(msg_data))
             except DataException as e:
                 log.warning(f"Failed to decode msg: {str(e)}")
+
+        raise TimeoutError()
 
 
 if __name__ == "__main__":

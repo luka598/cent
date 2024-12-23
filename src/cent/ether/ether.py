@@ -7,27 +7,39 @@ from cent.logging import Logger
 
 log = Logger(__name__)
 
-ETHER_BROADCAST_ADDR = b"\xff" * 16
 ETHER_BRIDGE_ADDR = b"\x00" * 16
+ETHER_BROADCAST_ADDR = b"\xff" * 16
 
 
 class EtherException(Exception):
-    pass
+    reason: str = ""
+
+    def __init__(self, reason: str, message: T.Optional[str] = None) -> None:
+        super().__init__(message if message is not None else reason)
 
 
 class Ether:
     def __init__(self) -> None:
-        self.channels: T.Dict[bytes, T.List[T.Callable[[Datum], T.Any]]] = {}
-        self.callback_iota = 0
+        self.channels: T.Dict[bytes, T.List[T.Callable[[Datum], T.Awaitable[None]]]] = {}
 
-        self.channels[ETHER_BRIDGE_ADDR] = []
-        self.channels[ETHER_BROADCAST_ADDR] = []
+    async def msg(self, channel: bytes, msg: Datum, timeout: int = 10) -> None:
+        if len(channel) != 16:
+            raise EtherException("channel length")
+        if msg.type != DatumType.MAP:
+            raise EtherException("message type")
 
-    async def msg_channel(self, channel: bytes, msg: Datum) -> None:
-        tasks = []
-        for callback in self.channels[channel]:
-            tasks.append(callback(msg))
+        log.info(f"MSG: {channel.hex()} - {time.time():.3f}")
 
+        callbacks = []
+        if channel == ETHER_BRIDGE_ADDR:
+            pass
+        elif channel == ETHER_BROADCAST_ADDR:
+            pass
+        elif channel in self.channels:
+            for callback in self.channels[channel]:
+                callbacks.append(callback)
+
+        tasks = [asyncio.wait_for(callback, timeout) for callback in callbacks]
         futures = await asyncio.gather(*tasks, return_exceptions=True)
         removed = 0
         for idx, future in enumerate(futures):
@@ -36,30 +48,13 @@ class Ether:
                 self.channels[channel].pop(idx - removed)
                 removed += 1
 
-    async def msg(self, channel: bytes, msg: Datum) -> None:
+        return
+
+    def add_callback(self, channel: bytes, callback: T.Callable[[Datum], T.Awaitable[None]]) -> None:
         if len(channel) != 16:
-            return
-        if channel not in self.channels:
-            return
-        if msg.type != DatumType.MAP:
-            return
+            raise EtherException("channel length")
 
-        log.info(f"MSG: {channel.hex()} - {int(time.time())}")
-
-        if channel == ETHER_BRIDGE_ADDR:
-            pass
-        elif channel == ETHER_BROADCAST_ADDR:
-            for channel in self.channels:
-                await self.msg_channel(channel, msg)
-        else:
-            await self.msg_channel(channel, msg)
-
-    def add_callback(self, channel: bytes, callback: T.Callable[[Datum], T.Any]) -> None:
-        if len(channel) != 16:
-            return
         if channel not in self.channels:
             self.channels[channel] = []
-
-        log.info(f"CON: {channel.hex()} - {int(time.time())}")
 
         self.channels[channel].append(callback)
