@@ -147,6 +147,7 @@ class CallClient:
                 msg = self.client.recv(timeout=10)
             except TimeoutError:
                 log.error("Failed to receive message; timed out")
+                continue
             # ---
             try:
                 ret_call_id = msg["call_id"]
