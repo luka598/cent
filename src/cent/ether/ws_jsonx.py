@@ -36,6 +36,7 @@ async def main(e: Ether) -> None:
             return
 
         e.add_callback(channel, lambda msg: ws.send(JSONx.dump(msg)))
+        log.warning(f"CON: {channel.hex()} - {int(time.time())}")
 
         while True:
             try:
