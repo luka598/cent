@@ -37,7 +37,7 @@ class Ether:
             pass
         elif channel in self.channels:
             for callback in self.channels[channel]:
-                callbacks.append(callback)
+                callbacks.append(callback(msg))
 
         tasks = [asyncio.wait_for(callback, timeout) for callback in callbacks]
         futures = await asyncio.gather(*tasks, return_exceptions=True)

@@ -146,7 +146,7 @@ class CallClient:
             try:
                 msg = self.client.recv(timeout=10)
             except TimeoutError:
-                log.error("Failed to receive message; timed out")
+                log.warning("Failed to receive message; timed out")
                 continue
             # ---
             try:
@@ -179,7 +179,7 @@ class CallClient:
             else:
                 raise CallClient.Exception(f"{ret[0]} - {ret[1]}")
 
-        log.warning(f"Failed to get response for {func}, resending.")
+        log.error(f"Failed to get response for {func}, resending.")
 
         return self.call(service, func, args)
 
