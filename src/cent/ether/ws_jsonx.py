@@ -120,7 +120,9 @@ class Client:
                 self.connect()
 
             try:
-                msg_data = self.ws.recv()
+                msg_data = self.ws.recv(timeout=1)
+            except TimeoutError:
+                continue
             except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
                 log.warning("Connection closed.")
                 self.ws = None
