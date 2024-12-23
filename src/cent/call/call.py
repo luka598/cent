@@ -27,10 +27,13 @@ class BoundSet:
             return True
 
     def clean(self) -> None:
+        keys = []
         for key, value in self.cache.items():
             if time.monotonic() - value > self.ttl:
-                del self.cache[key]
-                self.n -= 1
+                keys.append(key)
+        for key in keys:
+            del self.cache[key]
+            self.n -= 1
 
 
 class CallServer:
