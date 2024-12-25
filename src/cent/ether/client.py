@@ -1,3 +1,4 @@
+import time
 import typing as T
 
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
@@ -39,14 +40,29 @@ class Client:
         if self.ws is None:
             self.start()
 
-        try:
-            msg_data = self.ws.recv(timeout=timeout)
-        except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
-            log.warning("Connection closed.")
-            self.ws = None
+        time_start = time.monotonic()
 
-        try:
-            return PyO.dump(JSONx.load(msg_data))
-        except DataException as e:
-            log.warning(f"Failed to decode msg: {str(e)}")
-            raise Client.Exception()
+        def timed_out() -> bool:
+            if timeout is not None:
+                return (time.monotonic() - time_start) > timeout
+            else:
+                return False
+
+        while not timed_out():
+            if not self.ws:
+                self.start()
+
+            try:
+                msg_data = self.ws.recv(timeout=None if timeout is None else timeout / 10)
+            except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
+                log.warning("Connection closed.")
+                self.ws = None
+                continue
+
+            try:
+                return PyO.dump(JSONx.load(msg_data))
+            except DataException as e:
+                log.warning(f"Failed to decode msg: {str(e)}")
+                continue
+
+        raise TimeoutError()
