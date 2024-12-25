@@ -59,6 +59,7 @@ class Node:
                 if self.connectors[idx - removed].stopped:
                     log.debug(f"Removing stopped connector: {idx - removed} | {self.connectors[idx - removed]}")
                     self.connectors.pop(idx - removed)
+                    removed += 1
 
             # Push all outgoing to connectors
             for connector in self.connectors:
