@@ -69,16 +69,24 @@ class Printer:
     def stop(self) -> None:
         raise NotImplementedError()
 
-    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
+    def add_log(self, *args: T.Any, meta: T.Dict[str, T.Any], log_level: LOG_LEVEL_t) -> None:
         raise NotImplementedError()
 
-    def _log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
+    def _log(self, *args: T.Any, meta: T.Dict[str, T.Any], log_level: LOG_LEVEL_t) -> None:
         log_level = interpret_log_level(log_level)
 
         # Filters
 
         if log_level < LOG_LEVEL:
             return
+
+        if "name" in meta:
+            name = meta["name"]
+
+        if "thread_name" in meta:
+            thread_marker = meta["thread_name"]
+        else:
+            thread_marker = "?"
 
         if LOG_IGNORE:
             for ignore in LOG_IGNORE.split(","):
@@ -107,10 +115,11 @@ class Printer:
         else:
             color = ANSICode.BG_RED
 
-        output = "%s[%s][%s]:%s %s" % (
+        output = "%s[%s][%s@%s]:%s %s" % (
             color,
-            name,
             log_level,
+            name,
+            thread_marker,
             ANSICode.RESET,
             " ".join([str(item) for item in args]),
         )
@@ -124,8 +133,8 @@ class ClassicPrinter(Printer):
     def stop(self) -> None:
         pass
 
-    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
-        self._log(*args, name=name, log_level=log_level)
+    def add_log(self, *args: T.Any, meta: T.Dict[str, T.Any], log_level: LOG_LEVEL_t) -> None:
+        self._log(*args, meta=meta, log_level=log_level)
 
 
 class ThreadedPrinter(Printer):
@@ -142,10 +151,10 @@ class ThreadedPrinter(Printer):
     def stop(self) -> None:
         self.stop_event.set()
 
-    def add_log(self, *args: T.Any, name: str, log_level: LOG_LEVEL_t) -> None:
+    def add_log(self, *args: T.Any, meta: T.Dict[str, T.Any], log_level: LOG_LEVEL_t) -> None:
         if self.stop_event.is_set():
             raise RuntimeError("Printer stopped")
-        self.deque.append((args, name, log_level))
+        self.deque.append((args, meta, log_level))
 
     @property
     def _stop_condtion(self) -> bool:
@@ -156,8 +165,8 @@ class ThreadedPrinter(Printer):
     def worker(self) -> None:
         while not self._stop_condtion:
             try:
-                args, name, log_level = self.deque.popleft()
-                self._log(*args, name=name, log_level=log_level)
+                args, meta, log_level = self.deque.popleft()
+                self._log(*args, meta=meta, log_level=log_level)
             except IndexError:
                 time.sleep(self.wait_time)
 
@@ -199,7 +208,14 @@ class Logger:
         if interpret_log_level(log_level) < LOG_LEVEL:  # NOTE: Pre-filter
             return
 
-        self.printer.add_log(*args, name=self.name, log_level=log_level)
+        self.printer.add_log(
+            *args,
+            meta={
+                "name": self.name,
+                "thread_name": threading.current_thread().name,
+            },
+            log_level=log_level,
+        )
 
     def debug(self, *args: T.Any) -> None:
         return self.log(*args, log_level="DEBUG")
@@ -228,7 +244,7 @@ class CustomHandler(py_logging.Handler):
     def emit(self, record: py_logging.LogRecord) -> None:
         log_entry = self.format(record)
 
-        self.printer.add_log(log_entry, name=record.name, log_level=record.levelno)
+        self.printer.add_log(log_entry, meta={"name": record.name}, log_level=record.levelno)
 
 
 root_py_logger = py_logging.getLogger()

@@ -2,7 +2,8 @@ import time
 import typing as T
 from uuid import uuid4
 
-from cent.ether.ws_jsonx import Client
+from cent.ether.connectors.ws_jsonx import ClientConnector
+from cent.ether.main import Node
 from cent.logging import Logger
 
 log = Logger(__name__)
@@ -40,7 +41,13 @@ class CallServer:
     def __init__(self, service: str, server_uri: str, channel: bytes) -> None:
         self.service = service
         self.funcs = {}
-        self.client = Client(server_uri, channel)
+
+        self.node = Node()
+        self.channel = channel
+        self.con = ClientConnector(server_uri, channel)
+
+        self.node.add_connector(self.con)
+        self.node.start()
 
     def register(self, name: str, f: T.Callable) -> None:
         self.funcs[name] = f
@@ -50,7 +57,7 @@ class CallServer:
         call_ids = BoundSet(ttl=60 * 5, max_size=10_00)
         log.debug(f"Started call server for {self.service}")
         while True:
-            msg = self.client.recv()
+            _, msg = self.node.recv()
 
             # ---
             try:
@@ -102,24 +109,26 @@ class CallServer:
                     ret = (ret,)
                 if no_ret:
                     continue
-                self.client.send(
+                self.node.send(
+                    self.channel,
                     {
                         "call_id": call_id,
                         "success": True,
                         "ret": list(ret),
-                    }
+                    },
                 )
                 log.debug(f"Sent response for {func}")
             except Exception as e:
                 log.debug(f"Failed to execute {func} - {e}")
                 if no_ret:
                     continue
-                self.client.send(
+                self.node.send(
+                    self.channel,
                     {
                         "call_id": call_id,
                         "success": False,
                         "ret": [e.__class__.__name__, str(e)],
-                    }
+                    },
                 )
                 log.debug(f"Sent error response for {func}")
 
@@ -129,25 +138,31 @@ class CallClient:
         pass
 
     def __init__(self, server_uri: str, channel: bytes) -> None:
-        self.client = Client(server_uri, channel)
+        self.node = Node()
+        self.channel = channel
+        self.con = ClientConnector(server_uri, channel)
+
+        self.node.add_connector(self.con)
+        self.node.start()
 
     def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
         call_id = uuid4().bytes
         log.debug(f"Calling {func} with call_id {call_id}")
-        self.client.send(
+        self.node.send(
+            self.channel,
             {
                 "call_id": call_id,
                 "service": service,
                 "func": func,
                 "args": args,
                 "no_ret": False,
-            }
+            },
         )
         log.debug(f"Sent request for {func}")
 
         for _ in range(5):
             try:
-                msg = self.client.recv(timeout=10)
+                _, msg = self.node.recv(timeout=1)
             except TimeoutError:
                 log.warning("Failed to receive message; timed out")
                 continue
@@ -189,13 +204,14 @@ class CallClient:
     def call_noret(self, service: str, func: str, args: T.Dict) -> None:
         call_id = uuid4().bytes
         log.debug(f"Calling {func} with call_id {call_id}; noret")
-        self.client.send(
+        self.node.send(
+            self.channel,
             {
                 "call_id": call_id,
                 "service": service,
                 "func": func,
                 "args": args,
                 "no_ret": True,
-            }
+            },
         )
         log.debug(f"Sent request for {func}; noret")
