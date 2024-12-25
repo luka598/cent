@@ -2,8 +2,8 @@ import time
 import typing as T
 from uuid import uuid4
 
-from cent.ether.connectors.ws_jsonx import ClientConnector
-from cent.ether.main import Node
+from cent.ether_old.connectors.ws_jsonx import ClientConnector
+from cent.ether_old.main import Node
 from cent.logging import Logger
 
 log = Logger(__name__)
