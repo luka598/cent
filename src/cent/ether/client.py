@@ -25,21 +25,25 @@ class Client:
         self.ws.send(self.channel.hex())
 
     def send(self, msg: T.Dict) -> None:
+        if self.ws is None:
+            self.start()
+
         try:
             self.ws.send(JSONx.dump(PyO.load(msg)))
             return
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
             log.warning("Connection closed.")
             self.ws = None
-            raise Client.Exception()
 
     def recv(self, timeout: T.Optional[float] = None) -> T.Dict:
+        if self.ws is None:
+            self.start()
+
         try:
             msg_data = self.ws.recv(timeout=timeout)
         except (ConnectionClosed, ConnectionClosedOK, ConnectionClosedError):
             log.warning("Connection closed.")
             self.ws = None
-            raise Client.Exception()
 
         try:
             return PyO.dump(JSONx.load(msg_data))
