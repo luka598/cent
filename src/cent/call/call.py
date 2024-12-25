@@ -2,8 +2,7 @@ import time
 import typing as T
 from uuid import uuid4
 
-from cent.ether_old.connectors.ws_jsonx import ClientConnector
-from cent.ether_old.main import Node
+from cent.ether import Client
 from cent.logging import Logger
 
 log = Logger(__name__)
@@ -42,12 +41,8 @@ class CallServer:
         self.service = service
         self.funcs = {}
 
-        self.node = Node()
-        self.channel = channel
-        self.con = ClientConnector(server_uri, channel)
-
-        self.node.add_connector(self.con)
-        self.node.start()
+        self.client = Client(server_uri, channel)
+        self.client.start()
 
     def register(self, name: str, f: T.Callable) -> None:
         self.funcs[name] = f
@@ -57,7 +52,7 @@ class CallServer:
         call_ids = BoundSet(ttl=60 * 5, max_size=10_00)
         log.debug(f"Started call server for {self.service}")
         while True:
-            _, msg = self.node.recv()
+            msg = self.client.recv()
 
             # ---
             try:
@@ -109,8 +104,7 @@ class CallServer:
                     ret = (ret,)
                 if no_ret:
                     continue
-                self.node.send(
-                    self.channel,
+                self.client.send(
                     {
                         "call_id": call_id,
                         "success": True,
@@ -122,8 +116,7 @@ class CallServer:
                 log.debug(f"Failed to execute {func} - {e}")
                 if no_ret:
                     continue
-                self.node.send(
-                    self.channel,
+                self.client.send(
                     {
                         "call_id": call_id,
                         "success": False,
@@ -138,18 +131,13 @@ class CallClient:
         pass
 
     def __init__(self, server_uri: str, channel: bytes) -> None:
-        self.node = Node()
-        self.channel = channel
-        self.con = ClientConnector(server_uri, channel)
-
-        self.node.add_connector(self.con)
-        self.node.start()
+        self.client = Client(server_uri, channel)
+        self.client.start()
 
     def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
         call_id = uuid4().bytes
         log.debug(f"Calling {func} with call_id {call_id}")
-        self.node.send(
-            self.channel,
+        self.client.send(
             {
                 "call_id": call_id,
                 "service": service,
@@ -162,7 +150,7 @@ class CallClient:
 
         for _ in range(5):
             try:
-                _, msg = self.node.recv(timeout=1)
+                msg = self.client.recv(timeout=1)
             except TimeoutError:
                 log.warning("Failed to receive message; timed out")
                 continue
@@ -204,8 +192,7 @@ class CallClient:
     def call_noret(self, service: str, func: str, args: T.Dict) -> None:
         call_id = uuid4().bytes
         log.debug(f"Calling {func} with call_id {call_id}; noret")
-        self.node.send(
-            self.channel,
+        self.client.send(
             {
                 "call_id": call_id,
                 "service": service,
