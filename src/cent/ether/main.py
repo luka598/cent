@@ -37,6 +37,8 @@ class ConnectorI:
 
 class Node:
     def __init__(self) -> None:
+        self.MIN_LOOP_TIME = 1 / 100
+
         self.incoming: T.List[MESSAGE_t] = []  # Connector.incoming -> Node.incoming
         self.outgoing: T.List[MESSAGE_t] = []  # Node.outgoing -> Connector.outgoing
         self.connectors: T.List[ConnectorI] = []
@@ -53,6 +55,8 @@ class Node:
 
     def tick(self) -> None:
         while True:
+            start_time = time.monotonic()
+
             # Remove stopped connectors
             removed = 0
             for idx in range(len(self.connectors)):
@@ -73,7 +77,11 @@ class Node:
                     self.incoming.append(msg)
                 connector.incoming.clear()
 
-        # NOTE: Clears might cause race conditions
+            # NOTE: Clears might cause race conditions
+
+            diff = time.monotonic() - start_time
+            if diff < self.MIN_LOOP_TIME:
+                time.sleep(diff)
 
     def send(self, channel: bytes, msg: T.Any) -> None:
         self.outgoing.append((channel, PyO.load(msg)))
