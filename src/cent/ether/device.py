@@ -1,7 +1,10 @@
+import os
 import queue
 import typing as T
 
 from cent.data import Datum
+
+LOOP_TIME = 1 / int(os.getenv("ETHER_FREQ", 1000))
 
 MSG_t = T.Tuple[bytes, Datum]
 

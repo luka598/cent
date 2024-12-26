@@ -4,7 +4,7 @@ import typing as T
 import weakref
 
 from cent.data import Datum
-from cent.ether.device import Device, MSG_t, Queue
+from cent.ether.device import LOOP_TIME, Device, MSG_t, Queue
 from cent.logging import Logger
 
 log = Logger(__name__)
@@ -40,14 +40,14 @@ class Root(Device):
 
     def is_active_loop(self) -> None:
         while self.active:
-            time.sleep(0.1)
+            time.sleep(LOOP_TIME)
             if not (self.main_thread_ref() and self.main_thread_ref().is_alive()):  # type: ignore
                 self.stop()
 
     def main_loop(self) -> None:
         while self.active:
             try:
-                event = self.events.get(timeout=0.1)
+                event = self.events.get(timeout=LOOP_TIME)
             except TimeoutError:
                 continue
 
@@ -85,7 +85,7 @@ class Root(Device):
 
     def _push_outgoing(self) -> None:
         try:
-            msg = self.outgoing.get(0.01)
+            msg = self.outgoing.get(LOOP_TIME)
         except TimeoutError:
             return
 

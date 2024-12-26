@@ -4,7 +4,7 @@ import typing as T
 
 from cent.data import DataException
 from cent.data.t import JSONx
-from cent.ether.impl.root import Com, Root
+from cent.ether.impl.root import LOOP_TIME, Com, Root
 from cent.logging import Logger
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError, ConnectionClosedOK
 from websockets.sync.client import connect
@@ -47,7 +47,7 @@ class ServerCom(Com):
     def loop(self) -> None:
         while self.active:
             try:
-                event = self.events.get(timeout=0.1)
+                event = self.events.get(timeout=LOOP_TIME)
             except TimeoutError:
                 continue
 
@@ -71,7 +71,7 @@ class HandlerCom(Com):
 
         while self.active:
             try:
-                event = self.events.get(timeout=0)
+                event = self.events.get(timeout=LOOP_TIME)
             except TimeoutError:
                 event = None
 
@@ -137,7 +137,7 @@ class HandlerCom(Com):
 
     def _recv(self):
         try:
-            msg_data = self.ws.recv(0.1)
+            msg_data = self.ws.recv(LOOP_TIME)
             msg = JSONx.load(msg_data)
             self.incoming.put((self.channel, msg))
             self.parent.add_event("new_incoming")
@@ -169,7 +169,7 @@ class ClientCom(Com):
     def loop(self):
         while self.active:
             try:
-                event = self.events.get(timeout=0)
+                event = self.events.get(timeout=LOOP_TIME)
             except TimeoutError:
                 event = None
 
@@ -198,7 +198,7 @@ class ClientCom(Com):
 
     def _recv(self):
         try:
-            msg_data = self.ws.recv(0.1)
+            msg_data = self.ws.recv(LOOP_TIME)
             msg = JSONx.load(msg_data)
             self.incoming.put((self.channel, msg))
             self.parent.add_event("new_incoming")
