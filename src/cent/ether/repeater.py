@@ -1,17 +1,18 @@
 import os
 
-from cent.ether.connectors.ws_jsonx import ServerConnector
-from cent.ether.main import Node
+from cent.ether.impl.root import Root
+from cent.ether.impl.ws_jsonx import ServerCom
 
 if __name__ == "__main__":
-    node = Node()
-    con = ServerConnector(node, "0.0.0.0", 10_000, os.getenv("ETHER_SSL_CERT"), os.getenv("ETHER_SSL_KEY"))
-    node.add_connector(con)
-    node.start()
+    root = Root()
+    com = ServerCom(root, "0.0.0.0", 10_000, os.getenv("ETHER_SSL_CERT"), os.getenv("ETHER_SSL_KEY"))
+    root.add_com(com)
+    com.start()
+    root.start()
 
     while True:
         try:
-            msg = node.recv(1)
-            node.send(*msg)
+            msg = root.recv(1)
+            root.send(*msg)
         except TimeoutError:
             pass

@@ -1,9 +1,9 @@
 import time
 
-from cent.ether.main import Node
+from cent.ether.impl.simple import SimpleRoot
 
 if __name__ == "__main__":
-    node = Node()
+    node = SimpleRoot()
     node.start()
 
     while True:
