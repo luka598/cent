@@ -9,4 +9,5 @@ class SimpleRoot(Root):
         return super().send(channel, PyO.load(value))
 
     def recv(self, timeout: T.Optional[float] = None) -> T.Tuple[bytes, T.Dict]:
-        return PyO.dump(super().recv(timeout))
+        channel, value = super().recv(timeout)
+        return channel, PyO.dump(value)
