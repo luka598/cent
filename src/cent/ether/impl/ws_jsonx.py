@@ -56,6 +56,15 @@ class ServerCom(Com):
                 self.server.shutdown()
                 self.parent.add_event("com_stopped")
 
+            elif event == "new_outgoing":
+                self._clear()
+
+    def _clear(self) -> None:
+        try:
+            self.outgoing.get(0)
+        except TimeoutError:
+            pass
+
 
 class HandlerCom(Com):
     def __init__(self, parent: Root, ws) -> None:
