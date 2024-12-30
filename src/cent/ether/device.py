@@ -13,11 +13,11 @@ TV = T.TypeVar("TV")
 
 
 class Queue(T.Generic[TV]):
-    def __init__(self) -> None:
-        self.queue = queue.Queue()
+    def __init__(self, max_size: int = 1000) -> None:
+        self.queue = queue.Queue(maxsize=max_size)
 
     def put(self, item: TV) -> None:
-        self.queue.put(item)
+        self.queue.put_nowait(item)
 
     def get(self, timeout: T.Optional[float] = None) -> TV:
         try:
