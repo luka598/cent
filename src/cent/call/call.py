@@ -1,4 +1,5 @@
 import time
+import weakref
 import typing as T
 from uuid import uuid4
 
@@ -148,6 +149,11 @@ class CallClient:
         self.root.add_com(self.com)
         self.com.start()
         self.root.start()
+
+        weakref.finalize(self, self.stop)
+
+    def stop(self) -> None:
+        self.root.stop()
 
     def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
         call_id = uuid4().bytes
