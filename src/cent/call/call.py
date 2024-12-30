@@ -1,5 +1,4 @@
 import time
-import weakref
 import typing as T
 from uuid import uuid4
 
@@ -150,9 +149,7 @@ class CallClient:
         self.com.start()
         self.root.start()
 
-        weakref.finalize(self, self.stop)
-
-    def stop(self) -> None:
+    def __del__(self) -> None:
         self.root.stop()
 
     def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
