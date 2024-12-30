@@ -1,5 +1,5 @@
 import os
-import queue
+import threading
 import typing as T
 
 from cent.data import Datum
@@ -14,16 +14,34 @@ TV = T.TypeVar("TV")
 
 class Queue(T.Generic[TV]):
     def __init__(self, max_size: int = 1000) -> None:
-        self.queue = queue.Queue(maxsize=max_size)
+        self.lock = threading.Lock()
+        self.not_empty = threading.Event()
+
+        self.store = []
+        self.n = 0
+        self.max_size = max_size
 
     def put(self, item: TV) -> None:
-        self.queue.put_nowait(item)
+        with self.lock:
+            if self.n == self.max_size:
+                self.store.pop(0)
+                self.store.append(item)
+            else:
+                self.store.append(item)
+                self.n += 1
+                self.not_empty.set()
 
     def get(self, timeout: T.Optional[float] = None) -> TV:
-        try:
-            return self.queue.get(timeout=timeout)
-        except queue.Empty:
-            raise TimeoutError
+        self.not_empty.wait(timeout=timeout)
+        with self.lock:
+            if self.n == 0:
+                raise RuntimeError
+            elif self.n == 1:
+                self.not_empty.clear()
+
+            self.n -= 1
+
+            return self.store.pop(0)
 
 
 class Device:
