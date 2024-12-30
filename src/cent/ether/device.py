@@ -32,7 +32,9 @@ class Queue(T.Generic[TV]):
                 self.not_empty.set()
 
     def get(self, timeout: T.Optional[float] = None) -> TV:
-        self.not_empty.wait(timeout=timeout)
+        if not self.not_empty.wait(timeout=timeout):
+            raise TimeoutError
+
         with self.lock:
             if self.n == 0:
                 raise RuntimeError
