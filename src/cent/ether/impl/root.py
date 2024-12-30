@@ -4,7 +4,7 @@ import typing as T
 import weakref
 
 from cent.data import Datum
-from cent.ether.device import LOOP_TIME, Device, MSG_t, Queue
+from cent.ether.device import LOOP_TIME, SLOW_LOOP_TIME, Device, MSG_t, Queue
 from cent.logging import Logger
 
 log = Logger(__name__)
@@ -13,9 +13,17 @@ log = Logger(__name__)
 class Com(Device):
     def __init__(self, parent: "Root") -> None:
         super().__init__()
-        self.parent: Root = parent
+        self.parent_ref: weakref.ReferenceType[Root] = weakref.ref(parent)
         self.incoming: Queue[MSG_t] = Queue()
         self.outgoing: Queue[MSG_t] = Queue()
+
+    @property
+    def parent(self) -> "Root":
+        parent = self.parent_ref()
+        if parent is None:
+            raise RuntimeError
+        else:
+            return parent
 
 
 class Root(Device):
@@ -27,6 +35,10 @@ class Root(Device):
         self.coms: T.List[Com] = []
 
         self.main_thread_ref = weakref.ref(threading.main_thread())
+        weakref.finalize(self, self.cleanup)
+
+    def cleanup(self) -> None:
+        pass
 
     def start(self) -> None:
         self.active = True
@@ -40,9 +52,15 @@ class Root(Device):
 
     def is_active_loop(self) -> None:
         while self.active:
-            time.sleep(LOOP_TIME)
-            if not (self.main_thread_ref() and self.main_thread_ref().is_alive()):  # type: ignore
+            time.sleep(SLOW_LOOP_TIME)
+
+            main_thread = self.main_thread_ref()
+            if main_thread is None:
                 self.stop()
+                continue
+            if not main_thread.is_alive():
+                self.stop()
+                continue
 
     def main_loop(self) -> None:
         while self.active:
