@@ -5,6 +5,7 @@ from uuid import uuid4
 from cent.ether.impl.simple import SimpleRoot
 from cent.ether.impl.ws_jsonx import ClientCom
 from cent.logging import Logger
+from cent.rhythm.timeout import Timeout
 
 log = Logger(__name__)
 
@@ -168,7 +169,7 @@ class CallClient:
             )
             log.debug(f"Sent request for {func}")
 
-            for _ in range(20):
+            while not Timeout(5):
                 try:
                     _, msg = self.root.recv(timeout=1)
                 except TimeoutError:
