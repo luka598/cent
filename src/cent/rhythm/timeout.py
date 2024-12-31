@@ -11,9 +11,9 @@ class Timeout:
 
     def __bool__(self) -> bool:
         if (time.monotonic() - self.start_time) > self.timeout:
-            return False
+            return True
 
         if self.raise_exception:
             raise TimeoutError()
         else:
-            return True
+            return False

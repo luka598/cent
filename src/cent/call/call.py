@@ -153,7 +153,7 @@ class CallClient:
     def __del__(self) -> None:
         self.root.stop()
 
-    def call(self, service: str, func: str, args: T.Dict) -> T.Tuple:
+    def call(self, service: str, func: str, args: T.Dict, no_ret: bool = False) -> T.Tuple:
         call_id = uuid4().bytes
         while True:
             log.debug(f"Calling {func} with call_id {call_id}")
@@ -164,12 +164,16 @@ class CallClient:
                     "service": service,
                     "func": func,
                     "args": args,
-                    "no_ret": False,
+                    "no_ret": no_ret,
                 },
             )
             log.debug(f"Sent request for {func}")
 
-            while not Timeout(5):
+            if no_ret:
+                return (None,)
+
+            timeout = Timeout(5)
+            while not timeout:
                 try:
                     _, msg = self.root.recv(timeout=1)
                 except TimeoutError:
@@ -207,18 +211,3 @@ class CallClient:
                     raise CallClient.Exception(f"{ret[0]} - {ret[1]}")
 
             log.error(f"Failed to get response for {func}, resending.")
-
-    def call_noret(self, service: str, func: str, args: T.Dict) -> None:
-        call_id = uuid4().bytes
-        log.debug(f"Calling {func} with call_id {call_id}; noret")
-        self.root.send(
-            self.channel,
-            {
-                "call_id": call_id,
-                "service": service,
-                "func": func,
-                "args": args,
-                "no_ret": True,
-            },
-        )
-        log.debug(f"Sent request for {func}; noret")
