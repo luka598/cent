@@ -56,90 +56,89 @@ class CallServer:
         log.debug(f"Registered {name} for {self.service}")
 
     def start(self) -> None:  # noqa: C901
-        call_ids = BoundSet(ttl=60 * 5, max_size=10_00)
+        msg_ids = BoundSet(ttl=60 * 5, max_size=10_00)
         log.debug(f"Started call server for {self.service}")
         while True:
             _, msg = self.root.recv()
-
-            # ---
             try:
-                call_id = msg["call_id"]
+                msg_id = msg["msg_id"]
                 service = msg["service"]
-                func = msg["func"]
-                args = msg["args"]
                 no_ret = msg["no_ret"]
-            except KeyError:
-                log.debug("Got invalid message")
-                continue
-            # ---
-            if not isinstance(call_id, bytes):
-                log.debug("Got invalid call_id; not bytes")
-                continue
-            if len(call_id) != 16:
-                log.debug("Got invalid call_id; invalid length")
-                continue
-            if call_ids.check(call_id):
-                log.debug("Got invalid call_id; duplicate")
+                calls = msg["calls"]
+
+                assert isinstance(msg_id, bytes), "Got invalid call_id; not bytes"
+                assert len(msg_id) == 16, "Got invalid call_id; invalid length"
+                assert not msg_ids.check(msg_id), "Got invalid call_id; duplicate"
+
+                assert isinstance(service, str), "Got invalid service name; not str"
+                assert service == self.service, "Got invalid service name; mismatch"
+
+                assert isinstance(no_ret, bool), "Got invalid no_ret; not bool"
+
+                assert isinstance(calls, list), ""
+
+                rets = []
+                for call in calls:
+                    func, args = call
+
+                    assert isinstance(func, str), "Got invalid func name; not str"
+                    assert func in self.funcs, "Got invalid func name; not registered"
+                    assert isinstance(args, dict), "Got invalid args; not dict"
+
+                    try:
+                        ret = self.funcs[func](**args)
+                        success = True
+                    except Exception as e:
+                        ret = (e.__class__.__name__, str(e))
+                        success = False
+
+                    if not isinstance(ret, tuple):
+                        ret = (ret,)
+
+                    if not no_ret:
+                        rets.append([success, list(ret)])
+
+            except (AssertionError, KeyError, ValueError) as e:
                 continue
 
-            if not isinstance(service, str):
-                log.debug("Got invalid service name; not str")
-                continue
-            if service != self.service:
-                log.debug("Got invalid service name; mismatch")
+            if no_ret:
                 continue
 
-            if not isinstance(func, str):
-                log.debug("Got invalid func name; not str")
-                continue
-            if func not in self.funcs:
-                log.debug("Got invalid func name; not registered")
-                continue
-
-            if not isinstance(args, dict):
-                log.debug("Got invalid args; not dict")
-                continue
-
-            if not isinstance(no_ret, bool):
-                log.debug("Got invalid no_ret; not bool")
-                continue
-            # ---
-            try:
-                log.debug(f"Got request for {func} with call_id {call_id}")
-                ret = self.funcs[func](**args)
-                if not isinstance(ret, tuple):
-                    ret = (ret,)
-                if no_ret:
-                    continue
-
-                self.root.send(
-                    self.channel,
-                    {
-                        "call_id": call_id,
-                        "success": True,
-                        "ret": list(ret),
-                    },
-                )
-                log.debug(f"Sent response for {func}")
-            except Exception as e:
-                log.debug(f"Failed to execute {func} - {e}")
-                if no_ret:
-                    continue
-
-                self.root.send(
-                    self.channel,
-                    {
-                        "call_id": call_id,
-                        "success": False,
-                        "ret": [e.__class__.__name__, str(e)],
-                    },
-                )
-                log.debug(f"Sent error response for {func}")
+            self.root.send(
+                self.channel,
+                {
+                    "msg_id": msg_id,
+                    "rets": rets,
+                },
+            )
 
 
 class CallClient:
     class Exception(Exception):
         pass
+
+    class Ret:
+        def __init__(self, rets: T.Optional[T.List] = None) -> None:
+            if rets:
+                self.rets = rets
+            else:
+                self.rets = []
+
+        def capture(self) -> T.Tuple:
+            if len(self.rets) == 0:
+                raise RuntimeError("No rets")
+
+            success, value = self.rets.pop(0)
+            if success:
+                return tuple(value)
+            else:
+                raise CallClient.Exception(f"{value[0]} - {value[1]}")
+
+        def all(self) -> T.List[T.Tuple]:
+            rets = []
+            while len(self.rets) > 0:
+                rets.append(self.capture())
+            return rets
 
     def __init__(self, server_uri: str, channel: bytes) -> None:
         self.channel = channel
@@ -150,64 +149,55 @@ class CallClient:
         self.com.start()
         self.root.start()
 
+        self.buffered_msg = None
+
     def __del__(self) -> None:
         self.root.stop()
 
-    def call(self, service: str, func: str, args: T.Dict, no_ret: bool = False) -> T.Tuple:
-        call_id = uuid4().bytes
-        while True:
-            log.debug(f"Calling {func} with call_id {call_id}")
-            self.root.send(
-                self.channel,
-                {
-                    "call_id": call_id,
-                    "service": service,
-                    "func": func,
-                    "args": args,
-                    "no_ret": no_ret,
-                },
-            )
-            log.debug(f"Sent request for {func}")
+    def call(self, service: str, func: str, args: T.Dict, no_ret: bool = False, buffer: bool = False) -> "CallClient.Ret":
+        msg_id = uuid4().bytes
+        if self.buffered_msg is None:
+            self.buffered_msg = {"msg_id": msg_id, "service": service, "no_ret": no_ret, "calls": []}
+        else:
+            self.buffered_msg["msg_id"] = msg_id
+            self.buffered_msg["service"] = service
+            self.buffered_msg["no_ret"] = no_ret
 
-            if no_ret:
-                return (None,)
+        self.buffered_msg["calls"].append([func, args])
+
+        if buffer:
+            return CallClient.Ret()
+        else:
+            return self.exec()
+
+    def exec(self) -> "CallClient.Ret":
+        msg = self.buffered_msg
+        self.buffered_msg = None
+        while True:
+            if msg is None:
+                return CallClient.Ret()
+
+            self.root.send(self.channel, msg)
+
+            if msg["no_ret"]:
+                return CallClient.Ret([(True, ())] * len(msg["calls"]))
 
             timeout = Timeout(5)
             while not timeout:
                 try:
-                    _, msg = self.root.recv(timeout=1)
+                    _, ret_msg = self.root.recv(timeout=1)
+
+                    msg_id = ret_msg["msg_id"]
+                    rets = ret_msg["rets"]
+
+                    assert isinstance(msg_id, bytes), "Invalid msg_id; not bytes"
+                    assert msg["msg_id"] == msg_id, "Invalid msg_id; mismatch"
+
+                    assert isinstance(rets, list), "Invalid ret; not list"
+
+                    return CallClient.Ret(rets)
+
+                except (KeyError, AssertionError):
+                    log.debug("Invalid msg")
                 except TimeoutError:
                     log.warning("Failed to receive message; timed out")
-                    continue
-                # ---
-                try:
-                    ret_call_id = msg["call_id"]
-                    success = msg["success"]
-                    ret = msg["ret"]
-                except KeyError:
-                    log.debug("Got invalid message")
-                    continue
-                # ---
-                if not isinstance(call_id, bytes):
-                    log.debug("Got invalid call_id; not bytes")
-                    continue
-                if call_id != ret_call_id:
-                    log.debug("Got invalid call_id; mismatch")
-                    continue
-
-                if not isinstance(success, bool):
-                    log.debug("Got invalid success; not bool")
-                    continue
-
-                if not isinstance(ret, list):
-                    log.debug("Got invalid ret; not list")
-                    continue
-                ret = tuple(ret)
-                # ---
-                log.debug(f"Got response for {func} - {success}")
-                if success:
-                    return ret
-                else:
-                    raise CallClient.Exception(f"{ret[0]} - {ret[1]}")
-
-            log.error(f"Failed to get response for {func}, resending.")
